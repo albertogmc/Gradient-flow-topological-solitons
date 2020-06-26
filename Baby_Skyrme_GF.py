@@ -10,18 +10,19 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #.............PARAMETERS  ..................
 
-n = 15 #number of grid points 
-h = 0.2  #space step
+n = 160 #number of grid points 
+h = 0.15#space step
 xmax=(n-1)*h
 ymax=(n-1)*h
-printing= 5;            # Every number of iterations  we  print the information..
+printing= 1;            # Every number of iterations  we  print the information..
 plotting =  100           # Every number of iterations  we  plot the configuration..
 delta=5.*pow(10,-3);      # This is the  time step. One has to play a little bit to find optimal values. If it is too high, it won't converge, and if it is too low, it will but slowly.
 precision = 0.00001       # This tells us when to stop the algorithm
 deltaE = 1 #
 max_iters = 100000 # maximum number of iterations
 iters = 0 #iteration counter
-mu2= 0.1 #Potential length scale
+mu2= 0.1 #Potential length scale.
+
 
 #........... FIELD CONFIGURATIONS ......................
 #................ FIELD VARIABLES..................
@@ -32,8 +33,9 @@ mu2= 0.1 #Potential length scale
 #we can define a vector field ϕ (denoted by f) whose components are a,b,c:
 #f=[a,b,c], --> f[i,j]=[a[i,j],b[i,j],c[i,j]], f[0][i,j]=a[i,j] and so forth
 
-def hedgehog(B):
+
 #....HEDGEHOG ANSATZ CONFIGURATION
+def hedgehog(B):
 #.... B = Topological charge
     a=np.zeros((2*n,2*n))
     b=np.zeros((2*n,2*n))
@@ -64,18 +66,67 @@ def hedgehog(B):
     hed0=[a,b,c]
     return hed0
 
+
+
+#....HEDGEHOG ANSATZ CONFIGURATION OF 2 INIDIVIDUAL SKYRMIONS
+
+def hedgehog2(B,delta):
+#.... delta = rotation angle between Skyrmions
+    a=np.zeros((2*n,2*n))
+    b=np.zeros((2*n,2*n))
+    c=np.zeros((2*n,2*n))
+    for j in range(0,2*n):
+        y1=(j-n/2)*h
+        y2=(j-3*n/2)*h
+        for i in range(0,2*n):
+            x=(i-n)*h
+            r12=x**2+y1**2
+            r22=x**2+y2**2
+            if j<n/2:
+                th1 = -np.arccos(x/np.sqrt(r12))
+                th2 = -np.arccos(x/np.sqrt(r22))
+            elif n/2 < j < 3*n/2:
+                th1 = np.arccos(x/np.sqrt(r12))
+                th2 = -np.arccos(x/np.sqrt(r22))
+                
+            elif i==j and i==n/2:
+                th1 = 0.0
+                th2 = -np.arccos(x/np.sqrt(r22))
+            elif i==j and i== 3*n/2:
+                th1 = np.arccos(x/np.sqrt(r12))
+                th2 = 0.0
+            else:
+                th1 = np.arccos(x/np.sqrt(r12))
+                th2 = np.arccos(x/np.sqrt(r22))
+            xi1 = np.pi/(1+r12)
+            xi2 = np.pi/(1+r22)
+            
+            a[i,j]=np.sin(xi1)*np.sin(B*th1)+np.sin(xi2)*np.sin(B*th2+delta)
+        
+            b[i,j]=np.sin(xi1)*np.cos(B*th1)+np.sin(xi2)*np.cos(B*th2+delta)
+        
+            c[i,j]=np.cos(xi1)+np.cos(xi2)
+            
+            hed2=[a[i,j],b[i,j],c[i,j]]
+            norm = np.sqrt(np.dot(hed2,hed2))
+            print(norm)
+            a[i,j]=a[i,j]/norm
+            b[i,j]=b[i,j]/norm
+            c[i,j]=c[i,j]/norm
+            
+    hed2norm=[a,b,c]
+    return hed2norm
+
+
+
 #Plot the ansatz configuration field
+#hed = hedgehog2(1,0)
 hed = hedgehog(1)
 x = np.linspace(-n*h,n*h,2*n)
 y = np.linspace(-n*h,n*h,2*n)
 #plt.subplot(2, 1, 1)
 X,Y =np.meshgrid(x,y)
 plt.quiver(X, Y, hed[0], hed[1], hed[2], units='width',pivot='mid')
-#plt.subplot(2, 1, 2)
-#plt.contourf(X, Y, f[2])
-#plt.contourf(-X, Y, f[2])
-#plt.contourf(X, -Y, f[2])
-#plt.contourf(-X, -Y, f[2])
 plt.colorbar()
 
 #......FINITE DIFFERENCE DERIVATIVES........
@@ -110,25 +161,25 @@ def dxxf(i,j,f):
     dxxf0=[0,0,0]
     for a in range(0,3):
         if i==0:
-            dxxf0[a] = (1*f[a][i,j]-2*f[a][i+1,j]+f[a][i+2,j])/(1*1.0*h**2)
-        dxxf0[a] = (1*f[a][i-1,j]-2*f[a][i,j]+1*f[a][i+1,j])/(1*1.0*h**2)
+            dxxf0[a] = (1*f[a][i,j]-2*f[a][i+1,j]+f[a][i+2,j])/(h**2)
+        dxxf0[a] = (1*f[a][i-1,j]-2*f[a][i,j]+1*f[a][i+1,j])/(h**2)
     return dxxf0  
 
 def dyyf(i,j,f):
     dyyf0=[0,0,0]
     for a in range(0,3):
         if j==0:
-            dyyf0[a] = (1*f[a][i,j]-2*f[a][i,j+1]+f[a][i,j+2])/(1*1.0*h**2)
+            dyyf0[a] = (1*f[a][i,j]-2*f[a][i,j+1]+f[a][i,j+2])/(h**2)
         if j==2*n-1:
-            dyyf0[a] = (1*f[a][i,j-2]-2*f[a][i,j-1]+f[a][i,j])/(1*1.0*h**2)
+            dyyf0[a] = (1*f[a][i,j-2]-2*f[a][i,j-1]+f[a][i,j])/(h**2)
         else: 
-            dyyf0[a] = (f[a][i,j-1]-2*f[a][i,j]+f[a][i,j+1])/(1*1.0*h**2)
+            dyyf0[a] = (f[a][i,j-1]-2*f[a][i,j]+f[a][i,j+1])/(h**2)
     return dyyf0  
 
 def dxyf(i,j,f):
     dxyf0=[0,0,0]
     for a in range(0,3):
-        dxyf0[a] = (1*f[a][i+1,j+1]-f[a][i-1,j+1]-f[a][i+1,j-1]+f[a][i-1,j-1])/(4*1.0*h**2)
+        dxyf0[a] = (1*f[a][i+1,j+1]-f[a][i-1,j+1]-f[a][i+1,j-1]+f[a][i-1,j-1])/(4*h**2)
     return dxyf0  
     
 
@@ -145,7 +196,7 @@ def sden(i,j,f):
   den0=(0.5*(dxf2+dyf2)+0.25*(dxf2*dyf2-dxfdyf**2)+V);
   return den0
 
-#compute total energy density of a field configuration f:
+#Define the energy density of a field configuration f as a function:
 def tden(f):
   Z=np.zeros((2*n,2*n))
   for i in range(2*n):
@@ -153,7 +204,7 @@ def tden(f):
         Z[i,j]=sden(i,j,hed)   
   return Z
 
-#compute total  energy of a field configuration:
+#compute total  energy of a field configuration: (integration of the energy density)
 def energy(f):
     energy=0.0;
     for j in range (0,2*n) :
@@ -162,6 +213,33 @@ def energy(f):
     return energy
 
 
+#................. TOPOLOGICAL DEGREE.................
+# Compute the topological degree of the field configuration. By definition, it must be an integer.
+
+#Skyrmion number density:
+def Nden(i,j,f):   
+  f0=[f[0][i,j],f[1][i,j],f[2][i,j]]
+  dxf0=dxf(i,j,f)
+  dyf0=dyf(i,j,f)
+  crossxy=np.cross(dxf0,dyf0)
+  Nden0=1/(4*np.pi)*np.dot(f0,crossxy);
+  return Nden0
+
+# integration of the Skyrmion number density:
+def deg(f):
+    N=0.0;
+    for j in range (0,2*n) :
+        for i in range (0,2*n):      
+            N=N+Nden(i,j,f)*h**2
+    return N
+
+
+
+
+
+
+
+#Energy density surface
 #Surface plot 
 fig = plt.figure()
 ax = fig.gca(projection='3d')
@@ -172,6 +250,7 @@ X,Y =np.meshgrid(x,y)
 
 surf = ax.plot_surface(X, Y, tden(hed), cmap=cm.coolwarm,
                        linewidth=0, antialiased=False)
+cont = ax.contourf(X, Y, tden(hed), cmap=cm.coolwarm)
 #surf = ax.plot_surface(-X, Y, tden(hed), cmap=cm.coolwarm,
                        #linewidth=0, antialiased=False)
 #surf = ax.plot_surface(X, -Y, tden(hed), cmap=cm.coolwarm,
@@ -229,7 +308,8 @@ def var_phi(i,j,f):
 ############ GRADIENT FLOW ALGORITHM ###############
 
 #Set initial conditions:
-f = hedgehog(1) #set linear configuration as initial condition
+f = hedgehog(1) #set hedgehog with linear radial function as initial condition
+#f = hedgehog2(1,80,0)
 norm=0
 varf=[0,0,0]
 for a in range(0,3):
@@ -251,24 +331,28 @@ while deltaE > precision and iters < max_iters:
             for a in range(0,3):
                 f[a][i,j]=(f[a][i,j]+delta*varf[a][i,j])/norm #new field configuration (normalized)
     energyf=energy(f); #Store energy value of the new field configuration in energyf
+    degf=deg(f)
+    sol=f
     deltaE = abs(energyf - energy0) #Change in energy
     iters = iters+1 #iteration count
     if (printcounter == printing):    
-        print("Iteration",iters,"Energy value is",energyf) #Print results each ''printing'' number of iterations
+        print("Iteration",iters,"Energy value:",energyf, "degree:",degf) #Print results each ''printing'' number of iterations
         printcounter = 0
     printcounter += 1
 print("The minimum energy configuration has an energy of", energyf)
 
-
+#Plot the results
 x = np.linspace(-n*h,n*h,2*n)
 y = np.linspace(-n*h,n*h,2*n)
 X,Y =np.meshgrid(x,y)
 fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9.75, 3))
 im= axes[1].quiver(X, Y, f[0], f[1], f[2], units='width',pivot='mid')
 axes[0].quiver(X, Y, hed[0], hed[1], hed[2], units='width',pivot='mid')
-axes[0].set_title('Hedgehog ansatz')
+axes[0].set_title('Spiral ansatz')
 axes[1].set_title('solution')
-fig.colorbar(im, ax=axes.ravel().tolist())
+clb = fig.colorbar(im, ax=axes.ravel().tolist())
+clb.ax.set_title('$\phi^3$')
+
 plt.show()
 #
 
@@ -277,17 +361,16 @@ plt.show()
 fr=[]
 hr=[]
 r=[]
+
+#Plot the radial profile of the configuration
 for i in range(0,2*n):
     r.append((i-n)*h)
     fr.append(f[2][i,i])
     hr.append(hed[2][i,i])
 fig, ax = plt.subplots()
 ax.plot(r,fr,label='solution')
-ax.plot(r,hr,label='hedgehog ansatz')
+ax.plot(r,hr,label='Spiral ansatz')
 ax.set_ylabel('$\phi^3$', rotation=0)
 ax.set_xlabel('x')
 plt.legend()
 plt.show()
-
-
-
